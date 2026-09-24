@@ -1,0 +1,19 @@
+{
+  "name": "guac-access-suite-guac-worker",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/worker.js",
+  "scripts": {
+    "build": "tsc -p .",
+    "start": "node dist/worker.js"
+  },
+  "dependencies": {
+    "bullmq": "^5.7.0",
+    "pg-promise": "^11.5.4",
+    "pino": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "typescript": "^5.4.5"
+  }
+}

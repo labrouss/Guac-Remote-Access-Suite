@@ -1,0 +1,114 @@
+services:
+  # This is the file shipped inside the release zip (renamed to docker-compose.yml
+  # by the packaging workflow). It only ever pulls pre-built images from GHCR —
+  # an end user running this never needs Node, a build toolchain, or the source
+  # repo at all. For building from source, see docker-compose.dev.yml instead.
+
+  migrate:
+    image: ghcr.io/your-org/guac-access-suite-backend:__VERSION__
+    command: ["npm", "run", "migrate"]
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    image: ghcr.io/your-org/guac-access-suite-backend:__VERSION__
+    env_file: .env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      vault:
+        condition: service_started
+      guacd:
+        condition: service_started
+    volumes:
+      - recordings:/data/recordings
+      - rdp_drives:/data/rdp-drives
+      # Bind mount, not a named volume — deliberately, so a translation
+      # file can be dropped straight into ./locales on the host and picked
+      # up immediately (routes/locales.ts reads this directory fresh on
+      # every request, not cached at startup) with no rebuild and no
+      # restart. A named volume would work too, but wouldn't be directly
+      # editable from the host filesystem the way "just drop a file in"
+      # implies.
+      - ./locales:/app/locales
+      # Same reasoning as ./locales just above, for a different real
+      # need: a PEM file dropped in here becomes trustable by setting
+      # NODE_EXTRA_CA_CERTS to its /app/ca-certs/... path in .env — no
+      # rebuild, no code change. Exists specifically for Active
+      # Directory's own LDAPS certificate (services/activeDirectory.ts)
+      # when it's issued by an internal/enterprise CA rather than a
+      # public one, which is the normal case for a real AD environment,
+      # not an edge case — confirmed directly from a real deployment
+      # hitting exactly this (UNABLE_TO_VERIFY_LEAF_SIGNATURE), not
+      # anticipated in the abstract. Empty and harmless for any
+      # deployment not using AD, or whose AD's LDAPS certificate already
+      # chains to a public CA.
+      - ./ca-certs:/app/ca-certs:ro
+    restart: unless-stopped
+
+  frontend:
+    image: ghcr.io/your-org/guac-access-suite-frontend:__VERSION__
+    # Plain HTTP inside the container (see frontend/nginx.conf) — put a TLS-
+    # terminating reverse proxy or load balancer in front of this in production.
+    ports:
+      - "8443:8080"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  guac-worker:
+    image: ghcr.io/your-org/guac-access-suite-guac-worker:__VERSION__
+    env_file: .env
+    depends_on:
+      - redis
+      - postgres
+    volumes:
+      - recordings:/data/recordings
+    restart: unless-stopped
+
+  guacd:
+    image: guacamole/guacd:1.5.5
+    volumes:
+      - rdp_drives:/data/rdp-drives
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    env_file: .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # -d $$POSTGRES_DB, not just -U $$POSTGRES_USER — see
+      # docker-compose.dev.yml's identical comment for the full
+      # explanation.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  vault:
+    image: hashicorp/vault:1.17
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vaultdata:/vault/file
+      - ./vault-config.hcl:/vault/config/vault-config.hcl
+    # No -config=... flag here — see docker-compose.dev.yml's identical
+    # comment for the full explanation. The official entrypoint already
+    # adds -config=/vault/config automatically; vault-config.hcl is
+    # already mounted into that directory below.
+    command: server
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  vaultdata:
+  recordings:
+  rdp_drives:

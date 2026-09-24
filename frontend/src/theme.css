@@ -1,0 +1,1769 @@
+/**
+ * Component and layout styles for the whole app. Every color, font, and
+ * radius value below is expressed as a CSS custom property (var(--...))
+ * rather than a literal — the actual values for those properties now
+ * live in ./themes/*.css, selected at runtime via a [data-theme]
+ * attribute on <html> (see ThemeProvider.tsx). This file intentionally
+ * defines no color values of its own anymore; see themes/README.md for
+ * the full list of properties a theme must define and what each one is
+ * used for.
+ */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg-void);
+  color: var(--text-primary);
+  font-family: var(--body-font);
+}
+
+.splash-screen {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-void);
+}
+.splash-mark {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--fiber-cyan);
+  box-shadow: 0 0 12px var(--fiber-cyan);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.setup-status-error {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  padding: 24px;
+  background: var(--bg-void);
+}
+.setup-status-error h1 {
+  font-size: 16px;
+  color: var(--alert-red);
+  margin: 0;
+}
+.setup-status-error p {
+  max-width: 420px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+}
+.setup-status-error button {
+  margin-top: 8px;
+  background: var(--bg-panel);
+  border: 1px solid var(--fiber-cyan);
+  color: var(--fiber-cyan);
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-family: var(--display-font);
+  font-size: 13px;
+  cursor: pointer;
+}
+.setup-status-error button:hover {
+  background: var(--fiber-cyan);
+  color: var(--bg-void);
+}
+
+.setup-wizard {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+.setup-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  padding: 32px;
+  width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-family: var(--display-font);
+}
+.setup-panel h1 { font-size: 16px; margin: 0 0 8px; }
+.setup-panel label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-muted); }
+.setup-panel input {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 8px;
+  font-family: var(--body-font);
+}
+.setup-panel button {
+  background: var(--fiber-cyan);
+  color: var(--bg-void);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.totp-qr {
+  display: block;
+  margin: 0 auto 12px;
+  border-radius: var(--radius-sm);
+  /* The QR image is a plain PNG data URL (black modules on white) —
+     background stays white deliberately so the code stays scannable
+     regardless of the app's own dark theme. */
+  background: #fff;
+  padding: 8px;
+}
+.totp-manual-entry {
+  margin-bottom: 12px;
+  font-size: 11px;
+}
+.totp-manual-entry summary {
+  color: var(--fiber-cyan);
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+.otpauth-url {
+  word-break: break-all;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-inset);
+  padding: 8px;
+  border-radius: var(--radius-sm);
+}
+.setup-error { color: var(--alert-red); font-size: 12px; }
+.setup-hint { color: var(--text-muted); font-size: 12px; margin: 0 0 8px; }
+.setup-footer { color: var(--text-muted); font-size: 11px; }
+
+.version-badge {
+  font-family: var(--display-font);
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.instance-name { color: var(--text-primary); font-weight: 600; }
+.version-number { color: var(--text-muted); }
+
+/* Shared, reusable modal chrome — first use is EditConnectionModal, but
+   generic enough (backdrop click-to-close, centered panel) for anything
+   else that needs a modal later rather than each one rolling its own. */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  /* Real bug found live: this and three other overlay/backdrop
+     elements (.panel-backdrop, .session-overview-backdrop,
+     .help-overlay) either hardcoded plain black or — worse —
+     rgba(11, 15, 20, ...), which is signal-dark's own --bg-void
+     (#0B0F14) written out as literal RGB channels rather than
+     referencing the variable at all. Every one of these would have
+     kept showing signal-dark's own specific tint underneath any other
+     theme (daylight included) regardless of which was actually active.
+     color-mix() genuinely resolves the active theme's own --bg-void at
+     render time, the same way var(--bg-void) does everywhere else in
+     this file — a literal rgba() can't reference a custom property's
+     value at all, which is exactly why these were hardcoded numbers
+     instead in the first place, not a deliberate exception like the
+     TOTP QR code or the recording canvas's own backgrounds are. */
+  background: color-mix(in srgb, var(--bg-void) 60%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  width: 420px;
+  max-width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  font-family: var(--display-font);
+}
+.modal-panel h3 { margin: 0 0 12px; font-size: 15px; }
+/* Recording playback modal needs a wider panel than the default 420px —
+   a scaled-down remote session display needs real room to be legible,
+   not the width appropriate for a form. */
+.recording-player-panel {
+  width: 800px;
+  height: 600px;
+  /* Requested directly: a resizable player. Native CSS resize, not a
+     custom drag handler — overflow: auto (a hard requirement for
+     resize to have any effect at all, per spec) plus explicit
+     min-width/min-height so dragging can't shrink it down to something
+     unusably small. Scoped to this specific panel, not .modal-panel
+     generally — a resizable EditConnectionModal or similar form would
+     just be a strange, unwanted affordance for something with no
+     reason to ever need more room.
+     Deliberately does NOT need any new JS to make the video itself
+     rescale as the panel resizes — .recording-player-canvas below is
+     made a flex child that grows/shrinks to fill whatever space the
+     resize leaves it, and RecordingPlayer.tsx already watches that
+     exact container with a ResizeObserver (added back in the very
+     first display-scaling fix in this area) purely to recompute
+     display.scale() whenever its size changes for any reason. Resizing
+     this panel is just one more reason for that observer to fire — it
+     was already designed to handle it generically, not add a special
+     case for it. */
+  min-width: 480px;
+  min-height: 400px;
+  resize: both;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+.recording-player-canvas {
+  background: #000;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  /* flex: 1 (with min-height: 0 to actually allow shrinking, a common
+     flex gotcha — a flex child's default min-height is auto, which
+     would otherwise refuse to shrink below its own content size rather
+     than actually filling the resized panel) makes this grow or shrink
+     to fill whatever room the now-resizable .recording-player-panel
+     leaves it, rather than staying pinned to a fixed height regardless
+     of how much space is actually available. No separate min-height
+     needed here anymore now that the panel itself has one (400px) —
+     that already keeps the whole modal, canvas included, from
+     collapsing to something unusable. */
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin: 8px 0;
+  /* Real bug found live: confirmed directly, not guessed — read the
+     actual pixel data back off the canvas Guacamole draws to during
+     playback (via a real, direct test with genuine drawing
+     instructions, not just size/sync) and it was already completely
+     correct. So this was never a parsing or rendering-pipeline problem
+     at all — the display element's own canvas layer gets
+     `z-index: -1` from Guacamole's own internal styling, and without
+     this container establishing its own stacking context, that
+     negative z-index canvas paints *behind* this element's own
+     `background: #000` instead of on top of it — genuinely correct
+     pixels, rendered, just invisible underneath solid black the entire
+     time. isolation: isolate makes this container's own background
+     become the base layer of a new stacking context it owns, which is
+     what actually guarantees a negative z-index child paints above it
+     — not something that happens to work by accident depending on
+     unrelated ancestors elsewhere in the page. */
+  isolation: isolate;
+}
+.recording-player-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.recording-player-seek { flex: 1; }
+.modal-panel h4 { margin: 12px 0 4px; font-size: 12px; color: var(--text-muted); }
+.modal-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.modal-panel input, .modal-panel .advanced-params-textarea {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: var(--display-font);
+}
+.advanced-params-textarea { resize: vertical; }
+/* New in AdhocConnectionModal.tsx — EditConnectionModal.tsx's own
+   advanced-params textarea is always visible, but a "Quick connect"
+   modal's whole point is staying fast for the common case, so this one
+   is tucked behind a native <details> disclosure instead. Themed
+   explicitly rather than left at the browser's own unstyled default —
+   everything in this app should look like it belongs to the active
+   theme, not like a foreign, unstyled browser control dropped into it. */
+.advanced-params-details {
+  margin: 8px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.advanced-params-details summary {
+  cursor: pointer;
+  color: var(--fiber-cyan);
+}
+.advanced-params-details .advanced-params-textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  box-sizing: border-box;
+}
+
+.cred-status-ok { color: var(--fiber-cyan); }
+.cred-status-missing { color: var(--alert-red); font-size: 11px; }
+
+.main-app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-hairline);
+  font-family: var(--display-font);
+}
+/* Real bug found live, reported directly: the always-on hamburger
+   trigger for the connections panel (.panel-trigger, position: fixed,
+   28px wide, pinned to the screen's very top-left corner) sits further
+   right than this header's own 16px left padding puts the title text —
+   genuinely overlapping it, not just visually close. margin-left here
+   clears the trigger's full 28px width with real breathing room to
+   spare, rather than just barely avoiding the overlap. */
+.app-title { margin-left: 24px; }
+.main-app { display: flex; flex-direction: column; height: 100vh; }
+
+.bookmark-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  font-family: var(--display-font);
+  font-size: 12px;
+}
+.bookmark-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-hairline);
+  color: var(--text-muted);
+}
+.bookmark-panel-actions { display: flex; gap: 8px; }
+.bookmark-panel-actions button,
+.bookmark-import-label {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.bookmark-list { list-style: none; margin: 0; padding: 4px; }
+.bookmark-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--fiber-cyan);
+  padding: 6px 8px;
+  cursor: pointer;
+  font-family: var(--body-font);
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+}
+.bookmark-item:hover { background: var(--bg-inset); }
+/* The bookmark-item button (open) sits alongside its own Edit/Delete
+   actions, not inside a single click target — real gap found live: no
+   edit function existed for bookmarks at all, only create. */
+.bookmark-list-item { display: flex; align-items: center; gap: 4px; }
+.bookmark-list-item .bookmark-item { flex: 1; min-width: 0; }
+.bookmark-item-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-right: 4px;
+}
+.bookmark-item-actions button {
+  font-size: 11px;
+  padding: 2px 6px;
+}
+.proxied-tag {
+  margin-left: 6px;
+  font-size: 9px;
+  color: var(--signal-amber);
+  text-transform: uppercase;
+  border: 1px solid var(--signal-amber);
+  border-radius: var(--radius-sm);
+  padding: 1px 4px;
+}
+.bookmark-add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-hairline);
+}
+.bookmark-add-form input,
+.bookmark-add-form select {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.bookmark-add-form button {
+  background: var(--fiber-cyan);
+  color: var(--bg-void);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bookmark-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* View toggle in header */
+.view-toggle {
+  background: transparent;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  padding: 5px 10px;
+  font-family: var(--display-font);
+  font-size: 11px;
+  cursor: pointer;
+}
+.view-toggle.is-active { color: var(--fiber-cyan); border-color: var(--fiber-cyan); }
+
+/* Demo panel */
+.demo-panel-dock {
+  position: fixed;
+  left: 0;
+  top: 44px;
+  width: 320px;
+  height: calc(100vh - 44px);
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border-hairline);
+  overflow-y: auto;
+  z-index: 5;
+}
+.demo-panel {
+  padding: 12px;
+  font-family: var(--display-font);
+  font-size: 13px;
+}
+.demo-create-form, .demo-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-hairline);
+  margin-bottom: 12px;
+}
+.demo-create-form input, .demo-form-row input, .demo-form-row select {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.demo-create-form button, .demo-form-row button {
+  background: var(--fiber-cyan);
+  color: var(--bg-void);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.demo-error { color: var(--alert-red); font-size: 11px; }
+.demo-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.demo-list button {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.demo-list button:hover { background: var(--bg-inset); }
+.demo-slug { color: var(--text-muted); font-size: 10px; margin-left: 6px; }
+.demo-back {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 0 8px;
+  font-size: 11px;
+}
+.demo-description { color: var(--text-muted); font-size: 11px; }
+.demo-item-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.demo-item-list li { display: flex; align-items: center; gap: 6px; }
+.demo-item {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--fiber-cyan);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.demo-item:hover { background: var(--bg-inset); }
+.demo-item-remove {
+  background: transparent;
+  border: 1px solid var(--border-hairline);
+  color: var(--alert-red);
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  font-size: 10px;
+  cursor: pointer;
+}
+.demo-hint { color: var(--text-muted); font-size: 10px; margin: -4px 0 12px; }
+.demo-grant-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.demo-grant-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  padding: 4px 0;
+}
+.demo-grant-expiry { color: var(--text-muted); font-size: 10px; }
+.demo-grant-expiry.is-expired { color: var(--alert-red); }
+
+/* Connection panel: overlay, never pushes layout */
+.panel-trigger {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 28px;
+  /* A small, icon-sized hover zone in the top-left corner, not a
+     full-height strip down the entire left edge of the screen. Real bug
+     found live: at height:100vh, hovering anywhere along the left edge
+     of an open RDP/SSH session — including places the person was just
+     trying to move the mouse to interact with something inside the
+     remote session itself — popped this panel open over the session
+     view. 44px is roughly the icon's own natural size plus a little
+     breathing room, not an arbitrary number.
+     */
+  height: 44px;
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12px;
+  color: var(--text-muted);
+  font-family: var(--display-font);
+  cursor: pointer;
+  background: linear-gradient(90deg, var(--bg-panel), transparent);
+}
+.panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg-void) 60%, transparent);
+  z-index: 25;
+}
+.connection-panel {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  width: 300px;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border-hairline);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 12px;
+  font-family: var(--display-font);
+  font-size: 13px;
+  animation: slide-in 0.15s ease-out;
+  /* Real bug found live: this had a fixed height (100vh) but no
+     overflow-y set at all — with enough connections, folders, or
+     bookmarks to exceed the viewport height, the extra content just
+     silently overflowed the panel with no way to reach it at all, not
+     even by scrolling the page (the panel is position: fixed, so page
+     scroll doesn't affect it either). Reported directly: unable to
+     scroll to the last connections, or reach "Add bookmark" once the
+     list above it got long enough to push it out of view. auto, not
+     scroll, so a short list doesn't show a scrollbar it doesn't need. */
+  overflow-y: auto;
+}
+@keyframes slide-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+.connection-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-muted);
+}
+.pin-toggle { background: none; border: none; cursor: pointer; }
+.list-tree, .connection-tree { list-style: none; margin: 0; padding: 0; }
+.connection-tree { padding-left: 12px; margin-top: 4px; }
+.list-item, .connection-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+}
+.list-item.is-active, .list-item:hover, .connection-item:hover { background: var(--bg-inset); }
+.protocol-tag { color: var(--fiber-cyan); font-size: 10px; text-transform: uppercase; }
+.ad-sync-tag { color: var(--text-muted); font-size: 10px; text-transform: uppercase; margin-left: 6px; border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); padding: 1px 4px; }
+/* Folder grouping — a flat grouping under a list, not a nested tree of
+   its own lists (see migration 017's own comment for why). Matches the
+   existing .list-item/.connection-item's own look rather than
+   introducing a visually distinct third style, since a folder is really
+   just a labeled, collapsible group of connections, not a different
+   kind of thing. */
+.connection-folder-header {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 6px 8px 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.connection-folder-header:hover { color: var(--text-primary); }
+.folder-toggle-icon { display: inline-block; width: 10px; }
+.connection-folder-contents { padding-left: 12px; }
+.panel-bookmarks { margin-top: auto; }
+
+.add-connection-slot { padding: 4px 0; }
+.add-connection-trigger {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px dashed var(--border-hairline);
+  color: var(--fiber-cyan);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 12px;
+}
+.add-connection-trigger:hover { background: var(--bg-inset); }
+.add-connection-form {
+  background: var(--bg-inset);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.add-connection-form-row { display: flex; gap: 6px; }
+.add-connection-form-row input, .add-connection-form-row select {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 5px 6px;
+  font-size: 12px;
+}
+.add-connection-form-actions { display: flex; gap: 6px; margin-top: 2px; }
+.add-connection-form-actions button {
+  flex: 1;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  background: var(--fiber-cyan);
+  color: var(--bg-void);
+}
+.add-connection-cancel { background: transparent !important; border: 1px solid var(--border-hairline) !important; color: var(--text-muted) !important; }
+
+/* Record strip + Share button — both live inside .session-toolbar now,
+   which is the one absolutely-positioned container; neither positions
+   itself independently anymore. */
+.session-toolbar {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  z-index: 15;
+  display: flex;
+  gap: 8px;
+}
+.record-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.record-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  padding: 6px 10px;
+  font-family: var(--display-font);
+  font-size: 12px;
+  cursor: pointer;
+}
+.record-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--text-muted);
+}
+.record-toggle.is-recording { color: var(--alert-red); }
+.record-toggle.is-recording .record-dot {
+  background: var(--alert-red);
+  border-color: var(--alert-red);
+  box-shadow: 0 0 8px var(--alert-red);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.unmute-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  padding: 6px 10px;
+  font-family: var(--display-font);
+  font-size: 12px;
+  cursor: pointer;
+}
+/* Muted (AudioContext genuinely suspended) is the state worth drawing
+   attention to — matches record-toggle's own is-recording pattern of
+   using color to flag the state that needs the person's attention,
+   rather than the reverse. */
+.unmute-button-muted { color: var(--signal-amber); border-color: var(--signal-amber); }
+
+/* Share session popover */
+.share-session-anchor { position: relative; }
+.share-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 260px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: 10px;
+  font-family: var(--display-font);
+  /* Real bug found live: this had no z-index at all. Harmless for its
+     original use (ShareSessionButton, rendered inside the
+     session-viewport's own DOM subtree, which already gave it natural
+     stacking priority over its own siblings there) but broke the moment
+     this same class got reused for ThemePicker's identical-looking
+     dropdown in the <header> — a separate, earlier part of the DOM with
+     no such advantage. Without an explicit z-index, the session-viewport
+     area (rendered right after the header, at the same on-screen
+     position this popover extends down into) painted over its lower
+     portion, since later DOM siblings win when z-index is auto on both
+     sides. Reported as "the dropdown opens, but the second option isn't
+     clickable" — exactly what a partially-covered popover looks like:
+     the first row, closer to the trigger button, stayed clear, while the
+     row below it was actually receiving clicks meant for whatever was
+     rendered underneath instead. 70 — above every other non-modal
+     z-index in this file (highest otherwise is 60), below the modal
+     backdrop's 100, since a popover and a modal are never expected to
+     be open at the same time anyway.
+  */
+  z-index: 70;
+}
+.share-popover-title { font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; }
+.share-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.share-list-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+.share-list-item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-list-item select {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 2px 4px;
+}
+.share-list-item button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+.share-list-item button:hover { color: var(--alert-red); }
+
+/* Theme picker — used both in the header's own popover (.share-popover,
+   shared with ShareSessionButton's identical dropdown-panel look) and
+   inline in the setup wizard's theme step (no .share-popover wrapper
+   there, just this grid directly in the wizard panel). */
+.theme-picker-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 320px;
+  max-width: 100%;
+}
+.theme-picker-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+.theme-picker-option:hover { background: var(--bg-inset); }
+.theme-picker-option.is-active { border-color: var(--fiber-cyan); }
+.theme-picker-name { font-family: var(--display-font); font-size: 13px; }
+.theme-picker-description { font-size: 11px; color: var(--text-muted); }
+/* Requested directly: the language picker (LanguagePicker.tsx) reuses
+   .theme-picker-grid's other properties but not its fixed 320px width —
+   a theme's own name is always one of four known, short English words
+   ("Signal (Dark)", "Comic"), but a language name is whatever
+   Intl.DisplayNames resolves for whatever's actually in the locales/
+   directory (see that directory's own README) — "português (Brasil)" is
+   already longer than most theme names, and there's no fixed upper bound
+   on what a future community-contributed language's own name might be.
+   width: max-content sizes this to whatever's actually the widest option
+   currently listed, rather than guessing a fixed number that's either too
+   narrow for a long name or wastefully wide for short ones — genuinely
+   adapting to the same "nothing hardcoded" list this dropdown's own
+   options come from, not a fixed number picked once at the wrong time
+   for it to still be right forever. min-width keeps it from looking
+   cramped when every current option happens to be short (e.g. only "en"
+   and "el" both fitting well under it); max-width keeps it from running
+   off a narrow viewport if a name is unusually long.
+*/
+.language-picker-grid { width: max-content; min-width: 160px; max-width: min(400px, 90vw); }
+
+.session-readonly-badge {
+  position: absolute;
+  top: 8px;
+  left: 16px;
+  z-index: 15;
+  background: var(--bg-panel);
+  border: 1px solid var(--signal-amber);
+  color: var(--signal-amber);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-family: var(--display-font);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.session-viewport-drag-over { outline: 3px dashed var(--fiber-cyan); outline-offset: -3px; }
+.session-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--fiber-cyan);
+  font-family: var(--display-font);
+  font-size: 18px;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+/* Session viewport */
+.main-app-body { position: relative; flex: 1; min-height: 0; }
+.session-viewport { width: 100%; height: 100%; position: relative; }
+.session-canvas {
+  width: 100%;
+  height: 100%;
+  outline: none;
+  background: var(--bg-void);
+  /* isolation: isolate added defensively alongside the identical,
+     confirmed fix for .recording-player-canvas (see that rule's own
+     comment for the full root-cause explanation — Guacamole's own
+     display canvas gets z-index: -1 internally, which needs a real
+     stacking context here to guarantee it paints above this element's
+     own background rather than behind it). This element currently
+     works without it, apparently relying on some other, untraced
+     ancestor already providing an equivalent stacking context — adding
+     this explicitly here removes that reliance on an implicit,
+     unconfirmed factor rather than a guaranteed one. */
+  isolation: isolate;
+  /* Centers the Guacamole display element (which gets an explicit pixel
+     width/height from display.scale() in SessionViewport.tsx, not a
+     percentage size) within whatever space is actually available, rather
+     than it sitting unscaled and pinned to a corner at the remote
+     session's native resolution — the real, missing half of that fix.
+     overflow: hidden guards against a brief flash of oversized content
+     between the display's real resolution first becoming known and the
+     first scale() call landing. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.session-slot { width: 100%; height: 100%; }
+
+.session-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-hairline);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.session-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-inset);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  padding: 5px 10px;
+  font-family: var(--display-font);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.session-tab.is-active {
+  color: var(--fiber-cyan);
+  border-color: var(--fiber-cyan);
+}
+.session-tab-close {
+  /* Requested directly: often missed — the clickable area was exactly
+     the size of the glyph itself (13px, no padding at all), a genuinely
+     tiny target to hit precisely. display: inline-flex + padding
+     expands the actual hit area well beyond the glyph, not just the
+     glyph's own visual size — a bigger-looking × with the same tiny
+     click target underneath wouldn't have actually fixed the reported
+     problem. Real background + border-radius on hover, not just a
+     color change, so the larger target is visually obvious as
+     something to click, not just theoretically easier to hit. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin-left: 4px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+}
+.session-tab-close:hover { color: var(--alert-red); background: var(--bg-inset); }
+.session-tab-overview {
+  margin-left: auto;
+  font-size: 14px;
+  padding: 5px 10px;
+}
+
+/* Session overview (Ctrl+Alt+Up) */
+.session-overview-backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg-void) 85%, transparent);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+.session-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  max-width: 90vw;
+  max-height: 75vh;
+  overflow-y: auto;
+  padding: 8px;
+}
+.session-overview-card {
+  position: relative;
+  background: var(--bg-panel);
+  border: 2px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 220px;
+}
+.session-overview-card.is-active { border-color: var(--fiber-cyan); }
+.session-overview-card img,
+.session-overview-placeholder {
+  width: 100%;
+  height: 130px;
+  object-fit: cover;
+  background: var(--bg-void);
+  border-radius: var(--radius-sm);
+}
+.session-overview-label {
+  font-family: var(--display-font);
+  font-size: 12px;
+  color: var(--text-primary);
+  text-align: left;
+}
+.session-overview-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-void);
+  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+}
+.session-overview-close:hover { color: var(--alert-red); }
+.session-overview-hint {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--display-font);
+}
+
+/* Session menu (always-visible header dropdown) */
+.session-menu-anchor { position: relative; }
+.session-menu-trigger.has-sessions { color: var(--fiber-cyan); border-color: var(--fiber-cyan); }
+.session-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 260px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 40;
+  padding: 8px;
+  font-family: var(--display-font);
+}
+.session-menu-title {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  padding: 4px 8px 8px;
+}
+.session-menu-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 4px 8px;
+  margin: 0;
+}
+.session-menu-list { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; }
+.session-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.session-menu-item:hover { background: var(--bg-inset); }
+.session-menu-item.is-active { color: var(--fiber-cyan); }
+.session-menu-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-menu-item-close { color: var(--text-muted); font-size: 14px; line-height: 1; }
+.session-menu-item-close:hover { color: var(--alert-red); }
+.session-menu-overview-link {
+  width: 100%;
+  margin-top: 6px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  padding: 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.session-menu-overview-link:hover { color: var(--fiber-cyan); border-color: var(--fiber-cyan); }
+/* Requested directly, same reasoning LanguagePicker.tsx's own
+   .language-picker-grid comment already gives for the identical
+   technique: width: max-content sizes this to whatever's actually the
+   widest item currently in it ("Two-factor auth" here) rather than the
+   .session-menu base class's own fixed 260px, which was wide enough to
+   force some items onto two lines. white-space: nowrap on the items
+   themselves is the other half of that fix — .session-menu-item has no
+   wrapping behavior of its own to override (SessionMenu.tsx's own
+   items keep their own text on one line via a separate, inner
+   .session-menu-item-name span with text-overflow: ellipsis instead,
+   which truncates rather than reflows — not what's wanted here, where
+   every label should be shown in full). */
+.user-menu { width: max-content; min-width: 160px; max-width: min(320px, 90vw); }
+.user-menu .session-menu-item { white-space: nowrap; }
+.user-menu-divider { height: 1px; background: var(--border-hairline); margin: 6px 4px; }
+.user-menu-signout { color: var(--text-muted); }
+.user-menu-signout:hover { color: var(--alert-red); background: var(--bg-inset); }
+.session-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--display-font);
+  color: var(--text-muted);
+  background: var(--bg-void);
+}
+.session-status-error { color: var(--alert-red); }
+.session-status {
+  flex-direction: column;
+  gap: 10px;
+}
+.session-reconnect-button {
+  background: var(--fiber-cyan);
+  color: var(--bg-void);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-weight: 600;
+  font-family: var(--display-font);
+  cursor: pointer;
+}
+.transfer-chip {
+  position: absolute;
+  bottom: 12px;
+  right: 16px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--signal-amber);
+}
+.transfer-chip-error {
+  border-color: var(--alert-red);
+  color: var(--alert-red);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.transfer-chip-error button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+.no-session-placeholder {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-family: var(--display-font);
+}
+.rdp-download-tray {
+  position: absolute;
+  bottom: 12px;
+  left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 10;
+}
+.rdp-download-item {
+  background: var(--bg-panel);
+  border: 1px solid var(--fiber-cyan);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  color: var(--fiber-cyan);
+  font-family: var(--display-font);
+  font-size: 12px;
+  text-decoration: none;
+  /* Now a <button>, not an <a> (see SessionViewport.tsx's own comment
+     on downloadReadyFile for why) — a couple of things a real link
+     gets for free from the browser's own default styles that a button
+     doesn't, made explicit here so it still looks and behaves the
+     same as it always did. */
+  cursor: pointer;
+  text-align: left;
+  display: block;
+  width: 100%;
+}
+.rdp-download-item:hover { background: var(--bg-inset); }
+.rdp-download-item-active {
+  cursor: default;
+  color: var(--signal-amber);
+  border-color: var(--signal-amber);
+}
+.rdp-download-item-active:hover { background: var(--bg-panel); }
+.rdp-download-item:disabled { cursor: default; }
+
+.header-right { display: flex; align-items: center; gap: 12px; }
+.admin-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 12px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+}
+.admin-link:hover { color: var(--fiber-cyan); border-color: var(--fiber-cyan); }
+
+.user-picker { position: relative; flex: 1; min-width: 160px; }
+.user-picker input {
+  width: 100%;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.user-picker-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.user-picker-results button {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.user-picker-results button:hover { background: var(--bg-inset); }
+.picked-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-inset);
+  border: 1px solid var(--fiber-cyan);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--fiber-cyan);
+}
+.picked-user button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* DemoItemPicker — same structure/behavior as .user-picker above, kept
+   as its own, separately-named set of rules rather than reused
+   directly: consistent with every other demo-* class in this file
+   already being its own, distinctly-named thing even where visually
+   similar to something elsewhere. */
+.demo-item-picker { position: relative; flex: 1; min-width: 160px; }
+.demo-item-picker input {
+  width: 100%;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.demo-item-picker-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.demo-item-picker-results button {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.demo-item-picker-results button:hover { background: var(--bg-inset); }
+
+/* Admin panel */
+.admin-panel {
+  font-family: var(--display-font);
+  padding: 20px;
+  color: var(--text-primary);
+  height: 100vh;
+  overflow-y: auto;
+}
+.admin-back-link {
+  display: inline-block;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-decoration: none;
+  margin-bottom: 16px;
+}
+.admin-back-link:hover { color: var(--fiber-cyan); }
+.admin-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.admin-tabs button {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  padding: 8px 14px;
+  cursor: pointer;
+  font-family: var(--display-font);
+}
+.admin-tabs button.is-active { color: var(--fiber-cyan); border-color: var(--fiber-cyan); }
+
+.admin-form-row { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+.admin-form-row-stacked { flex-direction: column; align-items: stretch; }
+.admin-form-row-wrap { flex-wrap: wrap; }
+.admin-form-row input, .admin-form-row select {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 8px;
+  font-family: var(--body-font);
+}
+/* .connections-import-label: reported directly — the "Import
+   connections (JSON)" control (a <label> wrapping a hidden file
+   input, not a real <button>, so the plain "button" selector below
+   never matched it on its own) was styled with .bookmark-import-label
+   instead, a genuinely different, unrelated feature's own class
+   (BookmarkPanel.tsx's own bookmark import) — visually inconsistent
+   with "Export connections (JSON)" right next to it as a result. Its
+   own, correctly-scoped class now, extending this same rule rather
+   than duplicating it. */
+.admin-form-row button, .admin-form-row .connections-import-label {
+  background: var(--fiber-cyan);
+  color: var(--bg-void);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.admin-checkbox { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 12px; }
+/* Requested directly: a toggle switch reads more clearly as an on/off
+   setting than a plain checkbox does, especially for things like
+   "force recording" or "use individual credentials" that are genuinely
+   binary settings, not a list to pick items from. CSS-only — still a
+   real <input type="checkbox"> underneath (appearance: none only hides
+   the native rendering, not the element's actual role or behavior), so
+   keyboard navigation, screen readers, and :checked all keep working
+   exactly as before; nothing about the surrounding label/onChange logic
+   in any component needed to change at all. Scoped to .admin-checkbox
+   specifically — every current use of that class (AddConnectionForm,
+   EditConnectionModal, AdminPanel's own add-connection form,
+   BookmarksAdminSection) is a genuine single on/off toggle, not a
+   multi-select list, so this is safe to apply consistently everywhere
+   the class already appears rather than needing a separate opt-in. */
+.admin-checkbox input[type='checkbox'] {
+  appearance: none;
+  width: 40px;
+  height: 22px;
+  margin: 0;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: 11px;
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease-out, border-color 0.15s ease-out;
+}
+.admin-checkbox input[type='checkbox']::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+.admin-checkbox input[type='checkbox']:checked {
+  background: var(--fiber-cyan);
+  border-color: var(--fiber-cyan);
+}
+.admin-checkbox input[type='checkbox']:checked::before {
+  transform: translateX(20px);
+  background: var(--bg-void);
+}
+.admin-checkbox input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--fiber-cyan);
+  outline-offset: 2px;
+}
+/* .is-active on a table row had no matching selector at all before this —
+   selecting a group in GroupsTab's new master-detail view was invisible. */
+.admin-table tr.is-active { background: var(--bg-inset); }
+.admin-error { color: var(--alert-red); font-size: 12px; }
+.admin-danger-button { color: var(--alert-red); border-color: var(--alert-red); }
+.admin-reset-password-result {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.temporary-password {
+  display: block;
+  font-size: 16px;
+  letter-spacing: 0.05em;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  margin: 6px 0;
+  user-select: all;
+}
+.admin-hint { color: var(--text-muted); font-size: 12px; margin-bottom: 12px; }
+.admin-inline-edit { display: flex; gap: 6px; align-items: center; }
+.admin-inline-edit input {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 4px 6px;
+  font-size: 12px;
+}
+/* Per-user group tags in UsersTab — the "edit the user, set their
+   group" alternative to GroupsTab's own "edit the group, add users"
+   flow (both call the same backend endpoints; this is just the other
+   entry point into the same operation). */
+.admin-user-groups { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-right: 6px; }
+.admin-user-group-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+.admin-user-group-tag button {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1;
+}
+.admin-user-group-tag button:hover { color: var(--alert-red); }
+.admin-link-button {
+  background: none;
+  border: none;
+  color: var(--fiber-cyan);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* Folder rename/ungroup list, shown above the connections table when
+   this list has at least one folder in use — see migration 017's own
+   comment for why folders are a flat grouping rather than a separate
+   entity with its own row: rename/ungroup here are bulk updates across
+   every connection currently carrying that folder name, not an edit to
+   a folder's own record, because there isn't one. */
+.admin-folders-manage { margin: 12px 0; }
+.admin-folders-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.admin-folders-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+.admin-folders-list li span { flex: 1; color: var(--text-primary); }
+
+.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; font-family: var(--body-font); }
+.admin-bookmarks-section { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-hairline); }
+.admin-group-members { margin: 16px 0; }
+.admin-empty-state { color: var(--text-muted); font-size: 13px; }
+.audit-detail {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--display-font);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.audit-date-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.audit-date-filter input {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.admin-table th, .admin-table td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--border-hairline);
+}
+.admin-table th { color: var(--text-muted); font-family: var(--display-font); font-size: 11px; text-transform: uppercase; }
+.admin-table button {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--alert-red);
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.admin-lists-layout { display: flex; gap: 20px; }
+.admin-lists-sidebar { width: 260px; flex-shrink: 0; }
+.admin-lists-detail { flex: 1; }
+.admin-list-select { list-style: none; margin: 0; padding: 0; }
+.admin-list-select button {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--body-font);
+  font-size: 13px;
+}
+.admin-list-select button.is-active, .admin-list-select button:hover { background: var(--bg-inset); }
+.personal-tag {
+  color: var(--signal-amber);
+  font-size: 10px;
+  text-transform: uppercase;
+  margin-left: 6px;
+}
+
+/* Help panel */
+.help-overlay {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg-void) 70%, transparent);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.help-panel {
+  width: 720px;
+  max-width: 92vw;
+  height: 560px;
+  max-height: 85vh;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.help-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-hairline);
+  font-family: var(--display-font);
+  font-weight: 600;
+}
+.help-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.help-close:hover { color: var(--alert-red); }
+.help-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+.help-nav {
+  width: 200px;
+  border-right: 1px solid var(--border-hairline);
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 2px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.help-nav button {
+  background: none;
+  border: none;
+  text-align: left;
+  color: var(--text-muted);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+}
+.help-nav button:hover { background: var(--bg-inset); color: var(--text-primary); }
+.help-nav button.is-active { background: var(--bg-inset); color: var(--fiber-cyan); }
+.help-content {
+  flex: 1;
+  padding: 20px 24px;
+  overflow-y: auto;
+  font-family: var(--body-font);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.help-content h3 {
+  font-family: var(--display-font);
+  font-size: 14px;
+  margin: 0 0 12px;
+  color: var(--fiber-cyan);
+}
+.help-content p { margin: 0 0 12px; color: var(--text-primary); }
+.help-content strong { color: var(--signal-amber); font-weight: 600; }
+
+/* Share notifications — requested directly: a session share reaching
+   the recipient as something they can notice and act on, not just a
+   passive list they might think to check. 90: below the modal
+   backdrop's 100 (a notification shouldn't cover an open modal's own
+   content), above everything else already in this file (highest
+   otherwise is 70). Every color here is a theme variable, not a
+   literal — this toast needs to look correct under every theme, the
+   same as everything else in the app. */
+.share-notifications {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+}
+.share-notification {
+  background: var(--bg-panel);
+  border: 1px solid var(--fiber-cyan);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  font-family: var(--display-font);
+  /* Not the existing slide-in keyframes — that one slides in from the
+     left (translateX(-100%) to 0), built for .connection-panel's own
+     left-edge position. Reusing it here, at top-right, would visibly
+     slide in from the wrong direction. */
+  animation: slide-in-right 0.15s ease-out;
+}
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.share-notification-text { font-size: 13px; color: var(--text-primary); margin-bottom: 8px; }
+.share-notification-text strong { color: var(--fiber-cyan); }
+.share-notification-actions { display: flex; align-items: center; gap: 8px; }
+.share-notification-actions button:first-child {
+  background: var(--fiber-cyan);
+  color: var(--bg-void);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.share-notification-dismiss {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  margin-left: auto;
+  padding: 0 4px;
+}
+.share-notification-dismiss:hover { color: var(--alert-red); }

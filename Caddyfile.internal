@@ -1,0 +1,132 @@
+# Self-signed TLS variant of Caddyfile, for deployments with no public
+# domain — the common case for this app's own primary use case (internal
+# remote access to datacenter infrastructure), where the public-domain
+# Caddyfile's automatic Let's Encrypt issuance simply isn't reachable at
+# all (no public DNS, ports 80/443 not internet-facing, or both).
+#
+# `tls internal` tells Caddy to mint its own locally-trusted certificate
+# instead of attempting Let's Encrypt — no public DNS, no open ports 80
+# or 443 to the internet needed at all.
+#
+# On-demand (`tls internal { on_demand }`), not a certificate fixed to
+# one pre-set hostname — the actual, real fix for a real, reported
+# problem, not the original design: a fixed-hostname site block (an
+# earlier version of this file, `{$DOMAIN} { tls internal ... }`) only
+# has a certificate for the one exact value DOMAIN was set to, and Caddy
+# aborts the TLS handshake outright — not a certificate warning, an
+# actual connection failure — for any other hostname or IP used to
+# reach it, including perfectly reasonable ones like a bare IP in one
+# browser tab and an internal DNS name in another. Confirmed live: this
+# exact failure was reported (a real "can't establish a secure
+# connection" browser error, not a hypothetical), traced to exactly
+# this mismatch, and reproduced directly with a real Caddy instance and
+# a mismatched TLS SNI before this fix was written — not assumed to be
+# the cause and patched blind.
+#
+# On-demand TLS is normally gated behind a required "ask" permission
+# endpoint specifically to stop abuse (arbitrary hostnames triggering
+# unbounded certificate issuance against a real, rate-limited CA) — but
+# `tls internal` specifically, alone, is a documented exception to that
+# requirement (github.com/caddyserver/caddy issue #5986, confirmed
+# against Caddy's own source in modules/caddytls/ondemand.go): there's
+# no external CA, no public rate limit, and no meaningful resource cost
+# to worry about with a certificate this app's own Caddy mints itself.
+# Verified directly, not just read about: ran a real Caddy instance with
+# exactly this on-demand config and confirmed it correctly, independently
+# mints a distinct, valid certificate for three different,
+# previously-unconfigured hostnames in the same run, with zero "ask"
+# endpoint or rate-limit configuration present at all.
+#
+# DOMAIN is no longer used by this file at all as a result — whatever
+# hostname or IP address actually reaches this container becomes the
+# certificate's own identifier automatically, the first time it's used,
+# with no configuration and no risk of the mismatch above ever
+# recurring. docker-compose.caddy-internal.yml no longer requires it
+# either.
+#
+# Enough on its own to satisfy the browser's own secure-context
+# requirement (what passkeys specifically need — see README.md's own
+# Passkeys section) even before anyone's browser is told to trust the
+# certificate: a self-signed cert still means the connection itself is
+# encrypted, which is all window.isSecureContext actually checks. The
+# browser will still show a private-connection warning to click through
+# on first visit; see README.md's own TLS section for the one-time fix
+# for that (importing Caddy's own local root CA), which is optional
+# polish, not required for passkeys themselves to start working.
+#
+# Enable with: docker compose -f docker-compose.yml -f docker-compose.caddy-internal.yml up -d
+
+# Reported directly: certificates expiring after about a day, breaking
+# every connection until the whole stack was restarted. Checked
+# directly against Caddy's own official documentation before touching
+# anything: an internally-issued leaf certificate's default lifetime is
+# genuinely only 12h — confirmed, not assumed, against Caddy's own
+# `tls` directive docs — which matches what was actually being
+# observed. Caddy is supposed to renew a certificate like this on its
+# own, well before it actually expires, but a 12h lifetime leaves very
+# little margin for that renewal to reliably land before the next
+# request hits an already-expired one — a much longer lifetime is the
+# documented, recommended fix for exactly this (see a real, working
+# example of this same pattern: github.com/caddyserver/caddy issue
+# #6475, and a walkthrough at
+# blog.timcappalli.me/p/caddy-cert-lifetime).
+#
+# The global `pki` block below has to come first — literally the first
+# block in the file — Caddy's own global-options rule, not a stylistic
+# choice: intermediate_lifetime is a global PKI option, not a per-site
+# one, and only one global options block is allowed at all, so it can't
+# live down in the site block alongside `tls` itself.
+{
+	pki {
+		ca local {
+			# Default: 7d. Raised because the leaf lifetime below (30d)
+			# has to stay under intermediate_lifetime × the PKI app's own
+			# renewal_window_ratio (default 0.2, a separate setting from
+			# the general TLS automation's own 1/3-remaining default,
+			# confirmed directly against Caddy's own docs and source
+			# rather than conflated) — 0.2 × 180d = 36d, comfortably
+			# above the 30d leaf lifetime below, so this holds without
+			# also needing to override renewal_window_ratio itself.
+			# Purely internal and self-signed either way — this app's
+			# own root CA already defaults to a 10-year lifetime — so a
+			# longer intermediate carries none of the real-world risk a
+			# long-lived publicly-trusted certificate would.
+			intermediate_lifetime 180d
+		}
+	}
+}
+
+:443 {
+	# The `tls internal { on_demand }` shorthand used here before cannot
+	# express a custom lifetime at all — confirmed directly, not assumed:
+	# Caddy's own docs state outright that the `tls internal` shortcut
+	# cannot be used for this, and the internal issuer has to be spelled
+	# out in full (`issuer internal { ... }`) instead, exactly as below.
+	# `on_demand` itself is unrelated to and unaffected by any of this —
+	# still its own, separate subdirective alongside `issuer internal`,
+	# not something the lifetime change touches.
+	tls {
+		issuer internal {
+			# Default: 12h — confirmed directly against Caddy's own
+			# `tls` directive docs, not assumed, and the root cause of
+			# the reported "expires and breaks the connection after
+			# about a day" — 30d leaves a wide, comfortable margin for
+			# Caddy's own background renewal (attempted once a
+			# certificate has about a third of its own lifetime
+			# left — so around the 10-day-remaining mark here) to
+			# actually land well before the certificate would ever
+			# genuinely expire.
+			lifetime 30d
+		}
+		on_demand
+	}
+
+	reverse_proxy frontend:8080 {
+		# Guacamole's WebSocket tunnel and the bookmark proxy both need the
+		# upgrade headers forwarded, not just plain HTTP.
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+	}
+
+	encode gzip
+}

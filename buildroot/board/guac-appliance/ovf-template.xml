@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  OVF descriptor template — placeholders (@@TOKEN@@) are substituted by
+  post-image.sh with real file sizes/capacities computed at build time.
+  Never actually imported into a real vCenter/ESXi host — see
+  README.md's verification status. The property keys here (guac.network.*,
+  guac.public_url, guac.syslog_host) must stay in sync with what
+  guac-appliance-firstboot.sh's ovf_prop() calls read; if you rename one
+  here, rename it there too.
+-->
+<Envelope vmw:buildId="build-guac-access-suite"
+  xmlns="http://schemas.dmtf.org/ovf/envelope/1"
+  xmlns:cim="http://schemas.dmtf.org/wbem/wscim/1/common"
+  xmlns:ovf="http://schemas.dmtf.org/ovf/envelope/1"
+  xmlns:rasd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData"
+  xmlns:vmw="http://www.vmware.com/schema/ovf"
+  xmlns:vssd="http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <References>
+    <File ovf:href="guac-appliance-os.vmdk" ovf:id="os-disk" ovf:size="@@OS_VMDK_SIZE@@"/>
+    <File ovf:href="guac-appliance-data.vmdk" ovf:id="data-disk" ovf:size="@@DATA_VMDK_SIZE@@"/>
+  </References>
+
+  <DiskSection>
+    <Info>Virtual disk information</Info>
+    <Disk ovf:capacity="@@OS_DISK_CAPACITY_GB@@" ovf:capacityAllocationUnits="byte * 2^30"
+      ovf:diskId="os-disk" ovf:fileRef="os-disk" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized"
+      ovf:populatedSize="@@OS_VMDK_SIZE@@"/>
+    <Disk ovf:capacity="@@DATA_DISK_CAPACITY_GB@@" ovf:capacityAllocationUnits="byte * 2^30"
+      ovf:diskId="data-disk" ovf:fileRef="data-disk" ovf:format="http://www.vmware.com/interfaces/specifications/vmdk.html#streamOptimized"
+      ovf:populatedSize="@@DATA_VMDK_SIZE@@"/>
+  </DiskSection>
+
+  <NetworkSection>
+    <Info>List of networks</Info>
+    <Network ovf:name="VM Network">
+      <Description>The network the appliance's single NIC connects to</Description>
+    </Network>
+  </NetworkSection>
+
+  <VirtualSystem ovf:id="guac-access-suite-appliance">
+    <Info>Guac Access Suite appliance</Info>
+    <Name>Guac Access Suite Appliance</Name>
+
+    <OperatingSystemSection ovf:id="101" vmw:osType="otherLinux64Guest">
+      <Info>The kind of installed guest operating system</Info>
+      <Description>Buildroot Linux (custom appliance image)</Description>
+    </OperatingSystemSection>
+
+    <VirtualHardwareSection>
+      <Info>Virtual hardware requirements</Info>
+      <System>
+        <vssd:ElementName>Virtual Hardware Family</vssd:ElementName>
+        <vssd:InstanceID>0</vssd:InstanceID>
+        <vssd:VirtualSystemIdentifier>guac-access-suite-appliance</vssd:VirtualSystemIdentifier>
+        <vssd:VirtualSystemType>vmx-19</vssd:VirtualSystemType>
+      </System>
+
+      <Item>
+        <rasd:AllocationUnits>hertz * 10^6</rasd:AllocationUnits>
+        <rasd:Description>Number of virtual CPUs</rasd:Description>
+        <rasd:ElementName>4 vCPU</rasd:ElementName>
+        <rasd:InstanceID>1</rasd:InstanceID>
+        <rasd:ResourceType>3</rasd:ResourceType>
+        <rasd:VirtualQuantity>4</rasd:VirtualQuantity>
+      </Item>
+
+      <Item>
+        <rasd:AllocationUnits>byte * 2^20</rasd:AllocationUnits>
+        <rasd:Description>Memory Size</rasd:Description>
+        <rasd:ElementName>8192MB RAM</rasd:ElementName>
+        <rasd:InstanceID>2</rasd:InstanceID>
+        <rasd:ResourceType>4</rasd:ResourceType>
+        <rasd:VirtualQuantity>8192</rasd:VirtualQuantity>
+      </Item>
+
+      <Item>
+        <rasd:Address>0</rasd:Address>
+        <rasd:Description>PVSCSI controller</rasd:Description>
+        <rasd:ElementName>SCSI Controller 0</rasd:ElementName>
+        <rasd:InstanceID>3</rasd:InstanceID>
+        <rasd:ResourceSubType>VirtualSCSI</rasd:ResourceSubType>
+        <rasd:ResourceType>6</rasd:ResourceType>
+      </Item>
+
+      <Item>
+        <rasd:AddressOnParent>0</rasd:AddressOnParent>
+        <rasd:ElementName>OS disk</rasd:ElementName>
+        <rasd:HostResource>ovf:/disk/os-disk</rasd:HostResource>
+        <rasd:InstanceID>4</rasd:InstanceID>
+        <rasd:Parent>3</rasd:Parent>
+        <rasd:ResourceType>17</rasd:ResourceType>
+      </Item>
+
+      <!-- AddressOnParent=1 on the SAME SCSI controller — this is what
+           makes it /dev/sdb inside the guest, matching
+           guac-appliance-firstboot.sh's DATA_DISK assumption. -->
+      <Item>
+        <rasd:AddressOnParent>1</rasd:AddressOnParent>
+        <rasd:ElementName>Data disk</rasd:ElementName>
+        <rasd:HostResource>ovf:/disk/data-disk</rasd:HostResource>
+        <rasd:InstanceID>5</rasd:InstanceID>
+        <rasd:Parent>3</rasd:Parent>
+        <rasd:ResourceType>17</rasd:ResourceType>
+      </Item>
+
+      <Item>
+        <rasd:AddressOnParent>7</rasd:AddressOnParent>
+        <rasd:AutomaticAllocation>true</rasd:AutomaticAllocation>
+        <rasd:Connection>VM Network</rasd:Connection>
+        <rasd:Description>VMXNET3 ethernet adapter</rasd:Description>
+        <rasd:ElementName>Network adapter 1</rasd:ElementName>
+        <rasd:InstanceID>6</rasd:InstanceID>
+        <rasd:ResourceSubType>VmxNet3</rasd:ResourceSubType>
+        <rasd:ResourceType>10</rasd:ResourceType>
+      </Item>
+    </VirtualHardwareSection>
+
+    <!-- Property keys here must match guac-appliance-firstboot.sh's
+         ovf_prop() calls exactly. -->
+    <ProductSection>
+      <Info>Appliance network and instance configuration</Info>
+      <Product>Guac Access Suite</Product>
+
+      <Property ovf:key="guac.network.mode" ovf:type="string" ovf:userConfigurable="true" ovf:value="dhcp">
+        <Label>Network mode</Label>
+        <Description>"dhcp" (default) or "static". If "static", the ip/prefix/gateway/dns properties below are required.</Description>
+      </Property>
+      <Property ovf:key="guac.network.ip" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
+        <Label>Static IP address</Label>
+        <Description>Only used when network mode is "static".</Description>
+      </Property>
+      <Property ovf:key="guac.network.prefix" ovf:type="string" ovf:userConfigurable="true" ovf:value="24">
+        <Label>Static IP prefix length</Label>
+        <Description>CIDR prefix length, e.g. 24 for a /24 network. Only used when network mode is "static".</Description>
+      </Property>
+      <Property ovf:key="guac.network.gateway" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
+        <Label>Default gateway</Label>
+        <Description>Only used when network mode is "static".</Description>
+      </Property>
+      <Property ovf:key="guac.network.dns" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
+        <Label>DNS server</Label>
+        <Description>Only used when network mode is "static". Defaults to 1.1.1.1 if left blank.</Description>
+      </Property>
+      <Property ovf:key="guac.public_url" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
+        <Label>Public URL</Label>
+        <Description>The URL users will reach this appliance at, e.g. https://guac.example.com — used for CORS/redirect purposes by the app itself.</Description>
+      </Property>
+      <Property ovf:key="guac.syslog_host" ovf:type="string" ovf:userConfigurable="true" ovf:value="">
+        <Label>Syslog server (optional)</Label>
+        <Description>If set, audit log forwarding (SYSLOG_ENABLED) is turned on automatically, pointed at this host on the default UDP 514.</Description>
+      </Property>
+    </ProductSection>
+  </VirtualSystem>
+</Envelope>

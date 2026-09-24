@@ -1,0 +1,30 @@
+/**
+ * Daylight — a light theme, built as a real second example (not just an
+ * abstract schema) for anyone creating a new theme, and to stress-test
+ * that the 13-property contract in ../README.md is actually sufficient
+ * for a genuinely different look, not just a hue swap of the original
+ * dark theme's own relationships.
+ *
+ * Colors were chosen for real contrast against their typical use, not
+ * just visual similarity to the dark theme's palette — e.g. --fiber-cyan
+ * here is a deep teal, not a lightened version of the dark theme's
+ * bright cyan, since that bright value would fail as readable text or a
+ * usable border against a white background. Every property below plays
+ * the same *role* as it does in signal-dark.css; see ../README.md for
+ * what each one actually governs.
+ */
+[data-theme='daylight'] {
+  --bg-void: #F4F6F8;
+  --bg-panel: #FFFFFF;
+  --bg-inset: #EAEEF2;
+  --border-hairline: #D5DCE3;
+  --fiber-cyan: #0E7490;
+  --signal-amber: #B45309;
+  --alert-red: #C0262C;
+  --text-primary: #16202A;
+  --text-muted: #5B6B7A;
+  --display-font: 'IBM Plex Mono', monospace;
+  --body-font: 'IBM Plex Sans', sans-serif;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+}

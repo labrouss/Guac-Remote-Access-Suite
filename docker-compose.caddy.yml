@@ -1,0 +1,37 @@
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN:?Set DOMAIN in .env to your public hostname, e.g. guac.example.com}
+    depends_on:
+      - frontend
+
+  # No longer expose the frontend's port directly to the host — Caddy is
+  # the only public entrypoint now, terminating TLS before anything reaches
+  # it. A plain `ports: []` here would NOT actually do this: Compose
+  # treats `ports` (along with `volumes`, `secrets`, `configs`) as a
+  # uniqueness-keyed sequence on merge, appending/matching by
+  # {ip, target, published, protocol} rather than replacing the list
+  # wholesale — an empty list has nothing to match the base file's own
+  # port against, so it's a silent no-op and the base's published port
+  # would still be live alongside Caddy's, letting anyone bypass TLS
+  # entirely by hitting it directly. Confirmed as a real, live bug this
+  # way — not just reasoned about — by running the actual merged config
+  # through a real `docker compose config` and finding frontend's port
+  # still published. The explicit `!reset` YAML tag is Compose's own,
+  # documented mechanism for actually clearing an inherited sequence
+  # value, unlike a plain `[]`.
+  frontend:
+    ports: !reset []
+
+volumes:
+  caddy_data:
+  caddy_config:

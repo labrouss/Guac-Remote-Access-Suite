@@ -1,0 +1,12 @@
+[Unit]
+Description=Guac Access Suite appliance - Vault init/unseal/AppRole bootstrap
+After=guac-appliance.service
+Requires=guac-appliance.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/guac-appliance-vault-setup.sh
+
+[Install]
+WantedBy=multi-user.target

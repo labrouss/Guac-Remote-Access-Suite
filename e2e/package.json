@@ -1,0 +1,13 @@
+{
+  "name": "guac-access-suite-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "@types/node": "^26.1.2",
+    "otplib": "^12.0.1"
+  }
+}

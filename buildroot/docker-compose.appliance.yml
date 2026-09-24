@@ -1,0 +1,36 @@
+# Overlay for docker-compose.prod.yml specifically for the Buildroot
+# appliance image (buildroot/). Redirects every named volume onto bind
+# mounts under /data — a SEPARATE disk from the appliance's own OS disk
+# (see buildroot/README.md) — so that replacing/upgrading the appliance's
+# boot disk never touches persistent state. Postgres, Vault, and
+# recordings all live here; the OS disk itself is effectively disposable.
+#
+# Usage (done automatically by the appliance's systemd unit, not normally
+# run by hand):
+#   docker compose -f docker-compose.yml -f buildroot/docker-compose.appliance.yml up -d
+services:
+  postgres:
+    volumes:
+      - /data/guac-appliance/postgres:/var/lib/postgresql/data
+
+  vault:
+    volumes:
+      # /vault/file, not /vault/data — see vault-config.hcl's own comment
+      # for the full explanation (the official image only auto-chowns
+      # /vault/config, /vault/logs, and /vault/file for the non-root
+      # `vault` process; a custom path outside those three keeps default
+      # root ownership and Vault can never write to it).
+      - /data/guac-appliance/vault:/vault/file
+
+  backend:
+    volumes:
+      - /data/guac-appliance/recordings:/data/recordings
+      - /data/guac-appliance/rdp-drives:/data/rdp-drives
+
+  guac-worker:
+    volumes:
+      - /data/guac-appliance/recordings:/data/recordings
+
+  guacd:
+    volumes:
+      - /data/guac-appliance/rdp-drives:/data/rdp-drives

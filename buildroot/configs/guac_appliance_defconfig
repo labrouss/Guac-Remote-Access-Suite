@@ -1,0 +1,93 @@
+# Guac Access Suite appliance defconfig.
+#
+# Modeled directly on Buildroot's own board/pc/ reference (BIOS/GRUB boot,
+# genimage for disk-image assembly) — every BR2_* symbol below was checked
+# against the real Buildroot source (github.com/buildroot/buildroot) before
+# being written here, not assumed from memory. Two things worth flagging
+# up front for anyone building this for real:
+#   1. This defconfig has never actually been run through `make` — no
+#      Buildroot toolchain is available in the environment this was
+#      written in. Treat it as a strong, verified-against-real-symbols
+#      starting point, not a proven-working build.
+#   2. linux.config (alongside this file) is a config *fragment* — the
+#      VMware paravirtualized-driver options needed on top of a stock
+#      x86_64 kernel defconfig — not a complete, drop-in .config. See its
+#      own header comment.
+
+BR2_x86_64=y
+
+# BIOS boot via GRUB2 + genimage — the same combination Buildroot's own
+# board/pc/ example uses, chosen over EFI for broader compatibility across
+# vSphere/ESXi versions during OVA import (EFI remains a documented,
+# straightforward alternative — see README.md).
+BR2_TARGET_GRUB2=y
+BR2_TARGET_GRUB2_INSTALL_TOOLS=y
+BR2_PACKAGE_HOST_GENIMAGE=y
+BR2_ROOTFS_POST_BUILD_SCRIPT="board/guac-appliance/post-build.sh"
+BR2_ROOTFS_POST_IMAGE_SCRIPT="board/guac-appliance/post-image.sh"
+
+BR2_ROOTFS_OVERLAY="board/guac-appliance/rootfs-overlay"
+
+# systemd, not BusyBox init — Docker's own Config.in selects the cgroup-v2
+# mount package automatically when systemd is NOT used
+# (BR2_PACKAGE_CGROUPFS_V2_MOUNT if !BR2_PACKAGE_SYSTEMD); with systemd,
+# its own native cgroup v2 unified-hierarchy handling is used instead,
+# which is the simpler and better-supported path for running Docker.
+BR2_INIT_SYSTEMD=y
+BR2_SYSTEM_ENABLE_NLS=y
+BR2_ENABLE_LOCALE=y
+# networkd is a systemd sub-option, not enabled by BR2_INIT_SYSTEMD alone —
+# verified against package/systemd/Config.in.
+BR2_PACKAGE_SYSTEMD_NETWORKD=y
+
+# openvmtools requires a glibc or musl toolchain (not uClibc), dynamic
+# linking (not static libs), locale + wchar + threads enabled — all
+# verified against its real Config.in's dependency list. Buildroot's
+# internal toolchain defaults to glibc for x86_64, which already satisfies
+# this; called out explicitly here as a reminder not to switch to a
+# uClibc/static configuration without re-checking this dependency.
+BR2_PACKAGE_OPENVMTOOLS=y
+
+# --- Docker + Compose ---
+# Real, verified package names/dependencies: docker-engine selects
+# containerd + iptables + libseccomp automatically; docker-compose depends
+# on docker-cli.
+BR2_PACKAGE_DOCKER_ENGINE=y
+BR2_PACKAGE_DOCKER_CLI=y
+BR2_PACKAGE_DOCKER_COMPOSE=y
+
+# --- Root filesystem ---
+BR2_TARGET_ROOTFS_EXT2=y
+BR2_TARGET_ROOTFS_EXT2_4=y
+# Generous headroom for the Docker engine + CLI + compose + openvmtools +
+# systemd + the pre-loaded application image tarball (see post-build.sh) —
+# this is the OS/boot disk only, not where Postgres/Vault/recordings data
+# lives (that's the separate /data disk, mounted at boot by
+# guac-appliance-firstboot.service — see the rootfs overlay).
+BR2_TARGET_ROOTFS_EXT2_SIZE="4096M"
+# BR2_TARGET_ROOTFS_TAR is not set
+
+# --- Kernel ---
+BR2_LINUX_KERNEL=y
+BR2_LINUX_KERNEL_USE_CUSTOM_CONFIG=y
+BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE="board/guac-appliance/linux.config"
+BR2_LINUX_KERNEL_INSTALL_TARGET=y
+BR2_LINUX_KERNEL_NEEDS_HOST_OPENSSL=y
+BR2_LINUX_KERNEL_NEEDS_HOST_LIBELF=y
+
+# --- Networking / device management ---
+# systemd-networkd (part of the systemd package already selected above,
+# no separate package needed) handles both DHCP and the static-IP case —
+# deliberately not also enabling dhcpcd, which would just be a second,
+# redundant DHCP client competing with networkd in a systemd-init image.
+BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_EUDEV=y
+BR2_TARGET_GENERIC_GETTY_PORT="tty1"
+
+# --- Diagnostics / admin access ---
+BR2_PACKAGE_OPENSSH=y
+BR2_PACKAGE_CA_CERTIFICATES=y
+BR2_PACKAGE_UTIL_LINUX=y
+BR2_PACKAGE_UTIL_LINUX_MOUNT=y
+BR2_PACKAGE_E2FSPROGS=y
+BR2_PACKAGE_E2FSPROGS_RESIZE2FS=y
+BR2_PACKAGE_PARTED=y

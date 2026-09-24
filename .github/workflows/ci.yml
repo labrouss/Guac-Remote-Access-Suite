@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - run: npm test
+
+  # Layer 2 (docs/TESTING_PLAN.md) — real Postgres via testcontainers.
+  # GitHub Actions' standard Ubuntu runners have Docker pre-installed, so
+  # this should work where local development in some environments can't —
+  # but these tests have never actually been run anywhere yet, so
+  # continue-on-error until a first successful run confirms the harness
+  # itself works end to end, not just that its TypeScript compiles.
+  backend-integration-tests:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - run: npm run test:integration
+
+  # Layer 3 (docs/TESTING_PLAN.md) — full docker-compose.test.yml stack +
+  # Playwright. Same continue-on-error caveat as above, doubly so here:
+  # this hasn't been run even once, and three of its seven steps
+  # (test.fixme) are known-incomplete by design, not just unverified.
+  e2e-tests:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: docker compose -f docker-compose.test.yml up -d --build
+      - run: npm install
+        working-directory: e2e
+      - run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      - run: npm run test:e2e
+        working-directory: e2e
+      - run: docker compose -f docker-compose.test.yml down -v
+        if: always()

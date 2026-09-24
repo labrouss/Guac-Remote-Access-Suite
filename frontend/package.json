@@ -1,0 +1,30 @@
+{
+  "name": "guac-access-suite-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@simplewebauthn/browser": "^14.0.0",
+    "guacamole-common-js": "^1.5.0",
+    "i18next": "^26.4.2",
+    "i18next-http-backend": "^4.0.2",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-i18next": "^17.0.14",
+    "react-router-dom": "^6.23.1"
+  },
+  "devDependencies": {
+    "@types/guacamole-common-js": "^1.5.5",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.10"
+  }
+}

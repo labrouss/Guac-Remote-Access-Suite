@@ -1,0 +1,13 @@
+<!doctype html>
+<html>
+  <head><title>Internal Test Page</title></head>
+  <body>
+    <h1 id="marker">internal-only-host-reachable</h1>
+    <p>
+      This page stands in for an internal-only host in the e2e proxied-
+      bookmark test (docker-compose.test.yml's internal-test-http service).
+      Playwright's browser can only see this content if the bookmark proxy
+      actually works — it has no direct network path to this container.
+    </p>
+  </body>
+</html>

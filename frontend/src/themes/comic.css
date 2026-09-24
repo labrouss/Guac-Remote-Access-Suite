@@ -1,0 +1,36 @@
+/**
+ * Comic — a bold, playful light theme: warm paper-cream backgrounds,
+ * thick black "ink" borders, primary comic-book colors, and Comic Sans
+ * (a genuinely intentional choice for a theme literally named this,
+ * not an oversight — it's the single most recognizable "comic" font
+ * there is).
+ *
+ * --border-hairline is a near-black here rather than a subtle gray —
+ * comic panels are defined by bold, visible outlines, not hairlines,
+ * and this theme leans into that rather than fighting the metaphor.
+ * --fiber-cyan and --signal-amber both use deeper, more saturated
+ * values than a "pure" comic blue/yellow would — same contrast
+ * discipline as daylight.css: both are used as real text color
+ * elsewhere in the app (see theme.css), where the brightest, most
+ * saturated version of either — especially yellow — would be genuinely
+ * hard to read against these light backgrounds, not just less bold
+ * looking. --radius-sm/--radius-md are deliberately larger than the
+ * other two themes' sharp 2px/4px — bold, rounded "cartoon bubble"
+ * shapes are part of what makes this theme feel distinct beyond just
+ * its color palette.
+ */
+[data-theme='comic'] {
+  --bg-void: #FFF6E0;
+  --bg-panel: #FFFFFF;
+  --bg-inset: #FFE9B3;
+  --border-hairline: #1A1A1A;
+  --fiber-cyan: #0B5FCC;
+  --signal-amber: #A66A00;
+  --alert-red: #C81E3A;
+  --text-primary: #1A1A1A;
+  --text-muted: #6B6B6B;
+  --display-font: 'Comic Sans MS', 'Chalkboard SE', 'Comic Relief', cursive;
+  --body-font: 'Comic Sans MS', 'Chalkboard SE', 'Comic Relief', cursive;
+  --radius-sm: 6px;
+  --radius-md: 14px;
+}

@@ -1,0 +1,137 @@
+name: Build and Package Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag for manual build'
+        required: true
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service: [backend, frontend, guac-worker]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.service }}/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.service }}:${{ steps.ver.outputs.version }}
+            ${{ env.REGISTRY }}/${{ github.repository }}-${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  package-release:
+    needs: build-images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Assemble release bundle
+        run: |
+          mkdir -p dist/guac-access-suite
+          cp docker-compose.prod.yml dist/guac-access-suite/docker-compose.yml
+          cp docker-compose.caddy.yml dist/guac-access-suite/docker-compose.caddy.yml
+          cp Caddyfile dist/guac-access-suite/Caddyfile
+          cp docker-compose.caddy-internal.yml dist/guac-access-suite/docker-compose.caddy-internal.yml
+          cp Caddyfile.internal dist/guac-access-suite/Caddyfile.internal
+          cp .env.example dist/guac-access-suite/.env.example
+          cp vault-config.hcl dist/guac-access-suite/vault-config.hcl
+          cp -r migrations dist/guac-access-suite/migrations
+          cp -r docs dist/guac-access-suite/docs
+          cp -r scripts dist/guac-access-suite/scripts
+          chmod +x dist/guac-access-suite/scripts/*.sh
+          cp README.md LICENSE dist/guac-access-suite/
+          sed -i "s/__VERSION__/${{ steps.ver.outputs.version }}/g" dist/guac-access-suite/docker-compose.yml
+
+          # Version file, kept separate from the archive filename itself
+          echo "${{ steps.ver.outputs.version }}" > dist/guac-access-suite/VERSION
+
+          cat > dist/guac-access-suite/version.json << EOF
+          {
+            "version": "${{ steps.ver.outputs.version }}",
+            "built_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit": "${{ github.sha }}",
+            "images": {
+              "backend": "ghcr.io/${{ github.repository }}-backend:${{ steps.ver.outputs.version }}",
+              "frontend": "ghcr.io/${{ github.repository }}-frontend:${{ steps.ver.outputs.version }}",
+              "guac-worker": "ghcr.io/${{ github.repository }}-guac-worker:${{ steps.ver.outputs.version }}"
+            }
+          }
+          EOF
+
+      - name: Create checksums
+        run: |
+          cd dist/guac-access-suite
+          find . -type f -exec sha256sum {} \; > CHECKSUMS.sha256
+
+      - name: Generate changelog since last tag
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            git log "$PREV_TAG"..HEAD --pretty=format:"- %s (%h)" > dist/CHANGELOG_SNIPPET.md
+          else
+            echo "- Initial release" > dist/CHANGELOG_SNIPPET.md
+          fi
+
+      - name: Archive bundle
+        run: |
+          cd dist
+          tar -czf guac-access-suite-${{ steps.ver.outputs.version }}.tar.gz guac-access-suite
+          zip -r guac-access-suite-${{ steps.ver.outputs.version }}.zip guac-access-suite
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          body_path: dist/CHANGELOG_SNIPPET.md
+          files: |
+            dist/guac-access-suite-${{ steps.ver.outputs.version }}.tar.gz
+            dist/guac-access-suite-${{ steps.ver.outputs.version }}.zip
+          generate_release_notes: true

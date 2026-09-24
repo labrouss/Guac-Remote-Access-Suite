@@ -1,0 +1,14 @@
+[Unit]
+Description=Guac Access Suite appliance - first-boot data disk + .env setup
+DefaultDependencies=no
+After=local-fs-pre.target systemd-udev-settle.service
+Before=docker.service guac-appliance.service
+Requires=systemd-udev-settle.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/guac-appliance-firstboot.sh
+
+[Install]
+WantedBy=multi-user.target

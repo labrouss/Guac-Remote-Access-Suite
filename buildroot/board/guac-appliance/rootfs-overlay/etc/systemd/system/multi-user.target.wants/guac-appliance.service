@@ -1,0 +1,21 @@
+[Unit]
+Description=Guac Access Suite appliance - docker compose stack
+After=docker.service guac-appliance-firstboot.service network-online.target
+Requires=docker.service guac-appliance-firstboot.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/guac-access-suite
+# Loads any pre-bundled image tarball (see post-build.sh) before pulling —
+# `docker load` on a missing file is a no-op error, harmless if none was
+# bundled; compose's own `pull` step below then only fetches whatever
+# wasn't already loaded.
+ExecStartPre=-/usr/bin/docker load -i /opt/guac-access-suite/images.tar
+ExecStartPre=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.appliance.yml --env-file /data/guac-appliance/.env pull
+ExecStart=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.appliance.yml --env-file /data/guac-appliance/.env up -d
+ExecStop=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.appliance.yml --env-file /data/guac-appliance/.env down
+
+[Install]
+WantedBy=multi-user.target

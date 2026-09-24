@@ -1,0 +1,32 @@
+/**
+ * Signal (Dark) — the original, default theme.
+ *
+ * This file defines the same 13 CSS custom properties every theme must
+ * define (see ../README.md for the full contract each one governs).
+ * These values previously lived directly in theme.css's own `:root`
+ * block, with no way to swap them out — this file is that same block,
+ * extracted and renamed, with no value changes at all. See
+ * ThemeProvider.tsx for how [data-theme] gets set on <html>, and
+ * registry.ts for how this file gets registered as a selectable option.
+ *
+ * `:root` is defined here too, alongside `[data-theme="signal-dark"]`,
+ * so this stays the fallback before JavaScript has run at all (avoiding
+ * a flash of unstyled content on first paint) — not just relying on
+ * ThemeProvider always winning the race.
+ */
+:root,
+[data-theme='signal-dark'] {
+  --bg-void: #0B0F14;
+  --bg-panel: #131A22;
+  --bg-inset: #0E141B;
+  --border-hairline: #1F2933;
+  --fiber-cyan: #4DD8E6;
+  --signal-amber: #F5A623;
+  --alert-red: #E5484D;
+  --text-primary: #E6EDF3;
+  --text-muted: #7C8B99;
+  --display-font: 'IBM Plex Mono', monospace;
+  --body-font: 'IBM Plex Sans', sans-serif;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+}

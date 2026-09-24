@@ -1,0 +1,10 @@
+{
+  "version": "1.32.14",
+  "built_at": "2026-09-24T00:00:00Z",
+  "commit": "local-dev-build",
+  "images": {
+    "backend": "ghcr.io/your-org/guac-access-suite-backend:1.32.14",
+    "frontend": "ghcr.io/your-org/guac-access-suite-frontend:1.32.14",
+    "guac-worker": "ghcr.io/your-org/guac-access-suite-guac-worker:1.32.14"
+  }
+}

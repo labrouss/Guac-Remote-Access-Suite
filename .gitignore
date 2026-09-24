@@ -1,0 +1,26 @@
+# Dependencies and build output
+node_modules/
+dist/
+
+# Local environment files with real secrets — .env.example and
+# e2e/.env.test (throwaway values only) are the ones meant to be committed
+.env
+!.env.example
+!e2e/.env.test
+
+# Vault's unseal key + root token, written by scripts/vault-init.sh — see
+# that file's own warning comment. Never belongs in version control.
+vault-init-keys.txt
+
+# Backup/restore output (scripts/backup-*.sh) — contains real Postgres
+# dumps and Vault data, never belongs in version control
+backups/
+
+# Editor/OS cruft
+.DS_Store
+*.swp
+
+# Playwright/vitest artifacts
+test-results/
+playwright-report/
+coverage/

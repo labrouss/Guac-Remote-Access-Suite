@@ -1,0 +1,28 @@
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports:
+      - "443:443"
+    volumes:
+      - ./Caddyfile.internal:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
+  # No longer expose the frontend's port directly to the host — Caddy is
+  # the only entrypoint now, terminating TLS before anything reaches it.
+  # Port 80 deliberately left unpublished here, unlike the public-domain
+  # overlay — there's no ACME HTTP-01 challenge to serve for a
+  # self-signed certificate, so there's nothing that needs it open.
+  # `!reset`, not a plain `[]` — see docker-compose.caddy.yml's own
+  # comment on this same line for the full reasoning (a plain empty
+  # list is a documented no-op for Compose's uniqueness-keyed `ports`
+  # merge, confirmed as a real bug this way rather than assumed).
+  frontend:
+    ports: !reset []
+
+volumes:
+  caddy_data:
+  caddy_config:

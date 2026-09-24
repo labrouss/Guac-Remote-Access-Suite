@@ -1,0 +1,30 @@
+/**
+ * Midnight — a second dark theme, deliberately distinct from
+ * signal-dark's own cyan-on-black "network infrastructure" identity
+ * rather than a re-hue of it. Deep indigo/violet instead of pure black
+ * and blue — a late-night sky rather than a server rack.
+ *
+ * Same contrast discipline as daylight.css: every color chosen for how
+ * it's actually used (see ../README.md), not picked for looking nice in
+ * isolation. --text-primary is a near-white with just enough lavender
+ * tint to feel warm against the indigo backgrounds while keeping very
+ * high contrast against --bg-void; --border-hairline is deliberately a
+ * good deal lighter than --bg-panel so it stays a visible hairline
+ * rather than disappearing the way a too-close value would against dark
+ * backgrounds specifically.
+ */
+[data-theme='midnight'] {
+  --bg-void: #06070F;
+  --bg-panel: #12142A;
+  --bg-inset: #0B0C1C;
+  --border-hairline: #2A2D52;
+  --fiber-cyan: #9D8CFF;
+  --signal-amber: #FFD166;
+  --alert-red: #FF6B81;
+  --text-primary: #ECEAFF;
+  --text-muted: #7A7FA8;
+  --display-font: 'IBM Plex Mono', monospace;
+  --body-font: 'IBM Plex Sans', sans-serif;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+}

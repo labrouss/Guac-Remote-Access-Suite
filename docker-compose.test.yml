@@ -1,0 +1,131 @@
+# Layer 3 (e2e) test stack — separate from docker-compose.dev.yml /
+# docker-compose.prod.yml so Playwright tests never depend on a
+# developer's real .env or touch anything resembling production data.
+# Everything here is throwaway: fresh volumes every run, dummy secrets,
+# a disposable SSH target and a local HTTP server standing in for the
+# "internal-only host" a proxied bookmark would normally point at.
+#
+# DRAFTED, UNVERIFIED — see docs/TESTING_PLAN.md's Layer 3 section and
+# "Blocking on Docker". Never run against a real Docker daemon.
+#
+# Usage once Docker is available:
+#   docker compose -f docker-compose.test.yml up -d --build
+#   npm run test:e2e --prefix e2e
+#   docker compose -f docker-compose.test.yml down -v
+
+services:
+  migrate:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    command: ["npm", "run", "migrate"]
+    env_file: e2e/.env.test
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    env_file: e2e/.env.test
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      vault-init:
+        condition: service_completed_successfully
+      guacd:
+        condition: service_started
+    volumes:
+      - test_recordings:/data/recordings
+      - test_rdp_drives:/data/rdp-drives
+    ports:
+      - "8080:8080" # exposed directly for Playwright's API-level setup calls
+
+  frontend:
+    build: { context: ./frontend }
+    ports:
+      - "5173:8080" # Playwright drives the browser against this port
+    depends_on:
+      - backend
+
+  guac-worker:
+    build: { context: ., dockerfile: guac-worker/Dockerfile }
+    env_file: e2e/.env.test
+    depends_on:
+      - redis
+      - postgres
+    volumes:
+      - test_recordings:/data/recordings
+
+  guacd:
+    image: guacamole/guacd:1.5.5
+    volumes:
+      - test_rdp_drives:/data/rdp-drives
+
+  postgres:
+    image: postgres:16-alpine
+    env_file: e2e/.env.test
+    healthcheck:
+      # -d $$POSTGRES_DB, not just -U $$POSTGRES_USER — see
+      # docker-compose.dev.yml's identical comment for the full
+      # explanation. Doesn't currently cause an observable problem here
+      # specifically, since e2e/.env.test happens to set POSTGRES_USER
+      # and POSTGRES_DB to the same value — but relying on that
+      # coincidence is fragile; if they ever diverge, the same silent bug
+      # reappears here too.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    tmpfs:
+      - /var/lib/postgresql/data # no persistence needed; faster + always clean
+
+  vault:
+    image: hashicorp/vault:1.17
+    cap_add: ["IPC_LOCK"]
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=e2e-dev-root-token
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+    command: server -dev # dev-mode Vault: auto-unsealed, in-memory, exactly right for a throwaway test stack
+
+  # One-shot bootstrap: enables Transit + AppRole and creates the role the
+  # backend authenticates as (see vault-init.sh). Must complete before
+  # backend starts, or its first credential-encryption call fails.
+  vault-init:
+    image: hashicorp/vault:1.17
+    depends_on:
+      - vault
+    environment:
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_DEV_ROOT_TOKEN_ID=e2e-dev-root-token
+    entrypoint: ["sh", "/vault-init.sh"]
+    volumes:
+      - ./e2e/vault-init.sh:/vault-init.sh:ro
+
+  redis:
+    image: redis:7-alpine
+
+  # Disposable SSH target for the "open an SSH connection, confirm the
+  # terminal renders and accepts input" e2e test. linuxserver/openssh-server
+  # is a well-known image for exactly this purpose; PASSWORD_ACCESS +
+  # USER_PASSWORD give it a simple, fixed login the test can point a
+  # connection's individual credentials at.
+  ssh-target:
+    image: linuxserver/openssh-server:latest
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - PASSWORD_ACCESS=true
+      - USER_NAME=e2euser
+      - USER_PASSWORD=e2e-test-password
+
+  # Stands in for "an internal-only host the browser can't reach directly"
+  # for the proxied-bookmark e2e test — just a static page the backend
+  # container can reach (same Docker network) but Playwright's browser,
+  # running against the frontend's exposed port, cannot reach directly
+  # unless the proxy actually works.
+  internal-test-http:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./e2e/fixtures/internal-page.html:/usr/share/nginx/html/index.html:ro
+
+volumes:
+  test_recordings:
+  test_rdp_drives:

@@ -1,0 +1,29 @@
+-- AD group-to-local-group sync, requested directly, scoped specifically
+-- beyond AD login's own original boundary ("deliberately not a full
+-- sync of AD's own group structure into this app's own groups") — a
+-- real, immediate gap that boundary left open, reported live once
+-- AD login actually started working: a JIT-provisioned AD account got
+-- a personal list but was never placed into any of this app's own
+-- groups at all, unlike a locally-created account, where an admin
+-- naturally does that by hand as part of creating it. This migration
+-- is the schema half of actually closing that gap as a real, ongoing
+-- sync (not just a one-time grant at first login) — see
+-- services/activeDirectory.ts's own syncAdGroupMemberships for the
+-- logic.
+--
+-- 'ad_sync' vs 'manual', not inferred from anything else — explicit and
+-- checked, matching this app's own established preference (see
+-- users.auth_source, migration 021) for a single, unambiguous column
+-- over inferring provenance from some other signal. What this is
+-- actually for: sync's own removal step (a user's current AD memberOf
+-- no longer includes a mapped group) must only ever undo what sync
+-- itself added, and must never touch a membership an admin granted by
+-- hand through the ordinary admin panel — without this column, sync
+-- would have no way to tell those apart, and either constantly
+-- interfere with a real admin decision to add someone to a group
+-- (deleting it as a fresh, unauthorized-looking membership), or,
+-- to avoid that, never actually be able to remove anything
+-- automatically at all, undermining the "current, not just once"
+-- point of calling this a sync in the first place.
+ALTER TABLE user_groups ADD COLUMN source TEXT NOT NULL DEFAULT 'manual'
+    CHECK (source IN ('manual', 'ad_sync'));

@@ -1,0 +1,121 @@
+services:
+  # NOTE: the downloaded release bundle replaces the three `build:` blocks below
+  # with `image: ghcr.io/.../...-<service>:__VERSION__` (see .github/workflows/release.yml),
+  # so an end user never needs a build toolchain — only `docker compose up -d`.
+  # This root-level compose file is for local development against source.
+
+  migrate:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    command: ["npm", "run", "migrate"]
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    env_file: .env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      vault:
+        condition: service_started
+      guacd:
+        condition: service_started
+    volumes:
+      - recordings:/data/recordings
+      - rdp_drives:/data/rdp-drives
+      - ./locales:/app/locales
+      # See docker-compose.prod.yml's own comment on this same line for
+      # the full reasoning — a PEM file dropped in here becomes
+      # trustable via NODE_EXTRA_CA_CERTS in .env, for Active
+      # Directory's own LDAPS certificate when it's issued by an
+      # internal/enterprise CA (the normal case for a real AD
+      # environment).
+      - ./ca-certs:/app/ca-certs:ro
+    restart: unless-stopped
+
+  frontend:
+    build: { context: ./frontend }
+    # Plain HTTP inside the container (see frontend/nginx.conf) — put a TLS-
+    # terminating reverse proxy or load balancer in front of this in production.
+    ports:
+      - "8443:8080"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  guac-worker:
+    build: { context: ., dockerfile: guac-worker/Dockerfile }
+    env_file: .env
+    depends_on:
+      - redis
+      - postgres
+    volumes:
+      - recordings:/data/recordings
+    restart: unless-stopped
+
+  guacd:
+    image: guacamole/guacd:1.5.5
+    volumes:
+      - rdp_drives:/data/rdp-drives
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    env_file: .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # -d $$POSTGRES_DB, not just -U $$POSTGRES_USER — found live: without
+      # it, pg_isready falls back to standard libpq behavior of using the
+      # username itself as the database name (POSTGRES_USER=guac_app, but
+      # the real database is POSTGRES_DB=guac_access_suite), producing a
+      # continuous "FATAL: database guac_app does not exist" every 5
+      # seconds for the entire life of every deployment. Didn't break the
+      # reported health status itself (pg_isready mainly checks whether
+      # the server is accepting connections at all, which is why this
+      # went unnoticed through `docker ps` showing "(healthy)" the whole
+      # time) — but it's continuous log noise that could mask a genuinely
+      # important error, and represents a real, silently-failing
+      # connection attempt on every single check.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  vault:
+    image: hashicorp/vault:1.17
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vaultdata:/vault/file
+      - ./vault-config.hcl:/vault/config/vault-config.hcl
+    # No -config=... flag here — the official image's own
+    # docker-entrypoint.sh automatically adds `-config=/vault/config`
+    # (the whole directory, VAULT_CONFIG_DIR) whenever the command starts
+    # with "server". Passing our own -config=/vault/config/vault-config.hcl
+    # on top of that — as this line used to do — makes Vault's final
+    # command line specify -config TWICE, and it parses/tries to bind the
+    # same listener from both, within one process. Confirmed by reading
+    # the real entrypoint source (hashicorp/docker-vault) after a live
+    # deployment crash-looped with "address already in use" on a
+    # genuinely fresh container — a one-off run that bypassed the
+    # entrypoint (--entrypoint sh) started cleanly, which only makes sense
+    # if the entrypoint itself was the thing introducing the duplicate.
+    # vault-config.hcl is already volume-mounted directly into
+    # /vault/config below, so the entrypoint's own automatic
+    # -config=/vault/config picks it up with nothing further needed.
+    command: server
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  vaultdata:
+  recordings:
+  rdp_drives:
